@@ -12,27 +12,31 @@
  *  NOTE: Only Tiff has been checked!!
  *  
  *  Folder Structure:
- * - MainFolder
- *   - Experiment1
- *     - LayersData
- *     - ...
- *       - Layer
- *         - ImageFolder1
- *           - Tile_001-001-000000_0-000.tif
- *         	 - Tile_001-001-000000_1-000.tif
- *         	 - Tile_001-001-000001_0-000.tif
- *         	 - Tile_001-001-000001_1-000.tif
- *         	 - ...
- *         - ImageFolder2
- *         - ...
- *   - Experiment2
- *     - LayersDate
- *       - Layer
- *         - ImageFolder1
- *           - ...
- *   - Experiment3
- *   - ...
- *   ExperimentN
+ *	- MainFolder
+ *		- Experiment1
+ *			- Slide1
+ *				- LayersData
+ *				- ...
+ *					- Layer
+ *						- ImageFolder1
+ *							- Tile_001-001-000000_0-000.tif
+ *							- Tile_001-001-000000_1-000.tif
+ *							- Tile_001-001-000001_0-000.tif
+ *							- Tile_001-001-000001_1-000.tif
+ *							- ...
+ *						- ImageFolder2
+ *						- ...
+ *			- Slide2
+ *				- LayersDate
+ *					- Layer
+ *						- ImageFolder1
+ *						- ...
+ *			- Slide3
+ *			- ...
+ *			- SlideN
+ *		- Experiment 2
+ *		- ...
+ *		- ExperminetN
  *
  *  For each ImageFolder a ImageFolder_stack and if needed a ImageFolder_stitched with the processed image is created at the same location
  *  
@@ -40,143 +44,261 @@
  *  Works on XYZCT acquisition, to be tested on other dataset.
  *  Intermediate hyperstack are being saved for memory saving purposes.
  *  Multichoices of export added on 0.1.1
+ *  Felix Version added the posibility to tun the script over many different experiments automaticlly.
+ *  Quality of live changes like function, naming, ... added on 1.1.2
  *  
  *  Macro author:    R. De Mets
  *  Version:         0.1.2, 05/02/2024
  *  
  *  Adapted by:      Felix Romer
- *  Adapted Version: 1      06/02/2024
-*/
+ *  Adapted Version: 1.1.2, 07/02/2024
+ */
 
-// Global variables to execute both macros in sequence
-// Folder name corrected
+// Global variables
+var dirS      	 	= "/";
+var exportChoice 	= "Tiff";
+var stack_directory = "/";
+var save_name 		= " ";
+var nb_X 			= 4; 
+var nb_Y	 		= 4;
+var skipped_images  = newArray();
+var skipp_reason  	= newArray();
+var skipped 		= 0;
 
+/**
+ * Opens a dialog to choose the source directory and export options for the macro.
+ */
+function chooseSourceAndExportOptions() {
+    dirS = getDirectory("Choose source Directory");
 
-var stack_directory="/";
-var nb_X=4;
-var nb_Y=4;
+    Dialog.create("Export options");
+    Dialog.addChoice("File Export Format", newArray("Tiff", "PNG", "Image Sequence", "AVI", "HDF5 (new or replace)...", "OME - TIFF"), "Tiff");
+    Dialog.show();
 
+    exportChoice = Dialog.getChoice();
+}
 
-macro "Generate Stacks Button Action Tool - C000D00D01D02D03D04D10D20D30D40DfbDfcDfdDfeDffC000D11D12D13D21D22D23D31D41DbfDcdDceDcfDddDdeDdfDebDecDedDeeDefDf0DfaC000D05C000Df1Df2Df3Df4Df5Df6Df7Df8Df9C000D14DdcC000DeaC000D32C000D50DbeC000C111DdbDe0C111D0fC111DccC111D15C111D60D70D80D90Da0Db0Dc0Dd0DdaC111C222D06D42D51C222D33C222DafC222D24C222D07D08D09D0aD0bD0cD0dD0eC222De9C222C333D52C333De1De2De3De4De5De6De7De8C333Dd9C333C444D61D62D63D64D65D66D67D68D71D72D73D74D75D76D77D78D81D82D83D84D85D86D87D88D91D92D93D94D95D96D97D98Da1Da2Da3Da4Da5Da6Da7Da8Db1Db2Db3Db4Db5Db6Db7Db8Dc1Dc2Dc3Dc4Dc5Dc6Dc7Dc8Dd1Dd2Dd3Dd4Dd5Dd6Dd7Dd8C444DbdC444D34C444Dc9C444D69D79D89D99Da9Db9C444C555DbcC555DaeC555D53C555D54D55D56D57D58C666D59C666DcbC666DcaC666C777D43C777D1fC777D6aD7aD8aD9aDaaDbaC777DbbC777D5aC777D44C777D45D46D47D48D49D4aD9fC777D5bD6bD7bD8bD9bDabC888D4bC888D2fD3fD4fD5fD6fD7fD8fC888D25C888C999D35C999D36D37D38D39D3aC999D3bC999DadC999D4cD5cD6cD7cD8cD9cDacC999CaaaD3cCaaaD26CaaaD3dD4dD5dD6dD7dD8dD9dCaaaCbbbD16D27D28D29D2aD2bD2cCbbbD2dCbbbCcccCdddCeeeD17D18D19D1aD1bD1cD1dCeeeD1eCeeeD9eCeeeCfffD3eD4eD5eD6eD7eD8eCfffD2e"{
-	run("Close All");
+/**
+ * Processes all slides for each experiment in the specified directory.
+ *
+ * @param {string} current_experiment - Name of the current experiment folder.
+ */
+function processExperiment(current_experiment) {
+    current_experiment_name = substring(current_experiment, 0, current_experiment.length - 1);
+    slideFolder  			= dirS + "/" + current_experiment;
+    slidesList 				= getFileList(slideFolder);
+    num_slides				= slidesList.length;
+    print(current_experiment_name);
 
-	// Choose directory and create output directory
-	dirS = getDirectory("Choose source Directory");
+    for (slide = 0; slide < num_slides; slide++) {
+        current_slide 		= slidesList[slide];
+        current_slide_name  = substring(current_slide, 0, current_slide.length - 1);
+        imagesfolder    	= slideFolder + current_slide + "LayersData/Layer";
+        imagesList 			= getFileList(imagesfolder);
+        num_images 			= imagesList.length;
+        print("      Slide " + (slide+1) + "/" + num_slides + " - " + current_slide_name);
+
+        for (image = 0; image < num_images; image++) {
+            count = processImages(current_experiment_name, current_slide_name, num_images, imagesfolder, imagesList, image);
+            if (count > 2) {
+            	runGridStitchingAndSave(imagesfolder, stack_directory, exportChoice, save_name, nb_X, nb_Y)
+            }
+        }
+    }
+}
+
+/**
+ * Processes each image folder within a slide by stacking them,
+ * checking metadata, and saving stack(s) with column and line names.
+ *
+ * @param {string} experimentName 		- Name of the current experiment.
+ * @param {string} current_slideName 	- Name of the current slide.
+ * @param {number} num_images 			- Total number of images in the slide.
+ * @param {string} imagesfolder 		- Path to the folder containing folders with images.
+ * @param {Array} imagesList 			- List of folders with image files in the folder of one slide.
+ * @param {number} image 				- Index of the current image folder in the list.
+ * @returns {number} 					- Count of created stacks.
+ */
+function processImages(experimentName, current_slideName, num_images, imagesfolder, imagesList, image) {
+    // Stack images
+   
+	//get dir of each image and creat stack dir for each image
+	foldername          	= imagesList[image];
+	foldernameCut       	= substring(foldername, 0, foldername.length-1);
+	folderEnding     	    = substring(foldernameCut, foldernameCut.length-6, foldernameCut.length);
+	currentImageFolder 		= imagesfolder + "/" + foldername;
+	stack_directory       	= imagesfolder + "/" + foldernameCut + "_stack/";
+	save_name             	= current_experiment_name + " " + current_slide_name + " " + foldernameCut;
+	save_name             	= replace(save_name, "_", " ");
+	print("            Image " + (image + 1) + "/" + num_images + " - " + foldernameCut);
 	
-	// File export
-	Dialog.create("Export options");
-	Dialog.addChoice("File Export Format", newArray("Tiff", "PNG", "Image Sequence", "AVI", "HDF5 (new or replace)...", "OME - TIFF"), "Tiff"); 
-	Dialog.show();
-
-	exportChoice  = Dialog.getChoice();
-
-
-	// Edit Felix: Include a loop to run through all folders:
-	slidesList = getFileList(dirS); 
-	num_slides = slidesList.length;
+	// Check if images has alredy been processed
+	next_index	 			= minOf(image + 1, num_images - 1);
+	next_folder 			= imagesList[next_index];
+	next_folderEnding 		= substring(next_folder, next_folder.length-7, next_folder.length-1);
 	
-	// First loop runs over all experiments (slides) in the main folder
-	for (slide = 0; slide < num_slides; slide++) {
-		print("Experiment " + (slide+1) + "/" + num_slides);
-		
-		organoidsfolder = dirS + "/" + slidesList[slide] + "LayersData/Layer/";
-		organoidsList   = getFileList(organoidsfolder); 
-		num_organoids   = organoidsList.length;
-		
-		// Second loop runs over all different images (organoids) within one experiment
-		for (organoid = 0; organoid < num_organoids; organoid++) {
-			print("     Image " + (organoid + 1) + "/" + num_organoids);
-			
-			//get dir of each organoid and creat stack dir for each organoid
-			foldername            = organoidsList[organoid];
-			foldernameCut         = substring(foldername, 0, foldername.length-1);
-			currentOrganoidFolder = organoidsfolder + "/" + foldername;
-			stack_directory       = organoidsfolder + "/" + foldernameCut + "_stack/";
-			File.makeDirectory(stack_directory);
-			
-			// Extract Metadata from the title of the last tile
-			filenames    = getFileList(currentOrganoidFolder);
-			nb_images    = filenames.length;
-			SplitTitle   = split(filenames[nb_images-1], "_"); // cut the title at each _ (anything_dye1_dye2_dye3)
-			
-			SplitXYZ     = split(SplitTitle[1], "-");
-			nb_X         = parseInt(SplitXYZ[0]);
-			nb_Y         = parseInt(SplitXYZ[1]);
-			nb_Z         = parseInt(SplitXYZ[2]) + 1;
-			
-			title_no_ext = split(SplitTitle[2],   ".");
-			SplitCT      = split(title_no_ext[0], "-");
-			nb_C         = parseInt(SplitCT[0]) + 1;
-			nb_T         = parseInt(SplitCT[1]) + 1;
-		
-			// Open images as sequence and split sequence into stacks 
-			nb_tiles    = nb_X * nb_Y;
-			run("Image Sequence...", "dir=[" + currentOrganoidFolder + "] sort");
-			title_load  = getTitle();
-			run("Stack Splitter", "number=" + nb_tiles);
-			close(title_load);
-			
-			// Select and save stacks with column and line name
-			count = 1;
-			for (line = 1; line <= nb_X; line++) {
-				for (col = 1; col <= nb_Y; col++) {
-					save_tile = "stk_" + line + "_" + col;
-					if (count<10) {
-						title_tile = "stk_000" + count + "_" + title_load;
-					}
-					else {
-						title_tile = "stk_00"  + count + "_" + title_load;
-					}
-					selectWindow(title_tile);
-					run("Stack to Hyperstack...", "order=xytcz channels=" + nb_C + " slices=" + nb_Z + " frames=" +nb_T + " display=Composite");
-					saveAs("Tiff", stack_directory + "/" + save_tile);
-					close(save_tile + ".tif");	
-					count = count+1;
-				}
+	if (folderEnding == "_stack" || folderEnding == "itched" || next_folderEnding == "_stack") {
+		print("            This silde has been skipped, because it was alredy processed and a stack folder exist.\n            Delet this stack (and stitch) folder if you want to process it again.");
+		skipped_images[skipped] = save_name;
+		skipp_reason[skipped]   = "Image already processed earlyer - for reprecessing, delete the related folder";
+		skipped = skipped + 1;
+		return 1
+	}
+	
+	
+	
+	// Extract Metadata from the title of the last tile
+	filenames    			= getFileList(currentImageFolder);
+	nb_images    			= filenames.length;
+	SplitTitle   			= split(filenames[nb_images-1], "_"); // cut the title at each _ (anything_dye1_dye2_dye3)
+	
+	SplitXYZ     = split(SplitTitle[1], "-");
+	nb_X         = parseInt(SplitXYZ[0]);
+	nb_Y         = parseInt(SplitXYZ[1]);
+	nb_Z         = parseInt(SplitXYZ[2]) + 1;
+	
+	title_no_ext = split(SplitTitle[2],   ".");
+	SplitCT      = split(title_no_ext[0], "-");
+	nb_C         = parseInt(SplitCT[0]) + 1;
+	nb_T         = parseInt(SplitCT[1]) + 1;
+
+	// Check quality of images - stitches should have same size 
+	nb_tiles     = nb_X * nb_Y;
+	remainder    = nb_images % nb_tiles;
+	if (remainder != 0) {
+		print("This image has a problem with the size of the stitching-pices. They have not the same size");
+		skipped_images[skipped] = save_name;
+		skipp_reason[skipped]   = "Your data has problems. It seems as if the stiching pices dont have the same size";
+		skipped = skipped + 1;
+		return 1
+	}
+	
+	// Open images as sequence and split sequence into stacks
+	run("Image Sequence...", "dir=[" + currentImageFolder + "] sort");
+	title_load  = getTitle();
+	run("Stack Splitter", "number=" + nb_tiles);
+	close(title_load);
+	
+	// Select and save stacks with column and line name
+	count = 1;
+	for (line = 1; line <= nb_X; line++) {
+		for (col = 1; col <= nb_Y; col++) {
+			save_tile = save_name +"_" + line + "_" + col;
+			if (count<10) {
+				title_tile = "stk_000" + count + "_" + title_load;
+			}
+			else {
+				title_tile =  "stk_00"  + count + "_" + title_load;
 			}
 			
-			// Perform stiching if count is larger then 2. Then multiple images are generated, per 
-			if (count > 2) {
-				stitch_directory = organoidsfolder + "/" + foldernameCut + "_stitched/";
-				File.makeDirectory(stitch_directory);
-
-				// Get metadata from the last stack
-				filenames    = getFileList(stack_directory);
-				nb_images    = filenames.length;
-				title_no_ext = split(filenames[nb_images - 1], "."); // remove the extension
-				SplitTitle   = split(title_no_ext[0], "_");          // cut the title at each _
-			
-				nb_X         = parseInt(SplitTitle[1]);
-				nb_Y         = parseInt(SplitTitle[2]);
-			
-				// Run grid stitching
-				// Add option for different protocols
-				run("Grid/Collection stitching", "type=[Filename defined position] order=[Defined by filename         ] grid_size_x="+nb_Y+" grid_size_y="+nb_X+" tile_overlap=10 first_file_index_i=1 directory=["+stack_directory+"] file_names=[stk_{y}_{x}.tif] output_textfile_name=TileConfiguration.txt fusion_method=[Linear Blending] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 add_tiles_as_rois compute_overlap computation_parameters=[Save memory (but be slower)] image_output=[Fuse and display]");
-				
-				// Save the stitched image
-				if (exportChoice=="Tiff"||exportChoice=="PNG") { //works
-					saveAs(exportChoice, stitch_directory + "/Stitched_image");
-				}
-				else if(exportChoice=="Image Sequence"){ //works
-					run("Image Sequence... ", "select=["+stitch_directory+"] dir=[" + stitch_directory + "] format=TIFF");
-				}
-				else if(exportChoice=="AVI"){ // to check but should work
-					Dialog.create("AVI Export options");
-					Dialog.addNumber("Frame per second", 7) 
-					Dialog.show();
-			
-					FPS  = parseInt(Dialog.getChoice());
-					run("AVI... ", "compression=None frame=" + FPS + " save=[" + stitch_directory + "/Fused.avi]");
-					//run("AVI... ", "compression=None frame="+FPS+" save=[D:/Denmark/Data/CorrSight/File structure Richard/LayersData/Layer/Stiching/Fused.avi]");
-				}
-				else if(exportChoice=="HDF5 (new or replace)..."){
-					run("HDF5 (new or replace)...", "save=" + stitch_directory + "/Stitched_image.h5");
-				}
-				else{
-					run("OME-TIFF...", "save=" + stitch_directory + "/Stitched_image.tif export compression=Uncompressed");
-				}
+			if (isOpen(title_tile)) {
+				File.makeDirectory(stack_directory);
+			    selectWindow(title_tile);
+			    run("Stack to Hyperstack...", "order=xytcz channels=" + nb_C + " slices=" + nb_Z + " frames=" + nb_T + " display=Composite");
+				saveAs("Tiff", stack_directory + "/" + save_tile);
+				close(save_tile + ".tif");	
+				count = count + 1;
+			}
+			// If stack can not be build for one stack, stopp futher building 
+			else {
+				print("               This image was NOT processed.");
+				run("Close All");
+				skipped_images[skipped] = save_name;
+				skipp_reason[skipped]   = "Your data has problems. It seems as if not the right input data is provided";
+				skipped = skipped + 1;
+				return 1
 			}
 		}
 	}
-	print("Done !")
+    return count
 }
+
+/**
+ * Runs grid stitching on processed stacks and saves the stitched image. Will only be trigged,
+ * if the raw data was stacked in multiple images.
+ *
+ * @param {string} imagesfolder 			- Path to the folder containing processed stacks.
+ * @param {string} stack_directory 			- Path to the directory containing stacks.
+ * @param {string} exportChoice 			- Chosen export format for the stitched image.
+ * @param {string} save_name 				- Name to be used when saving the stitched image.
+ * @param {number} nb_X 					- Number of tiles in the X direction.
+ * @param {number} nb_Y 					- Number of tiles in the Y direction.
+ */
+function runGridStitchingAndSave(imagesfolder, stack_directory, exportChoice, save_name, nb_X, nb_Y) {
+    // Stitch images together and save
+	stitch_directory = imagesfolder + "/" + foldernameCut + "_stitched/";
+	File.makeDirectory(stitch_directory);
+
+	// Get metadata from the last stack
+	filenames    = getFileList(stack_directory);
+	nb_images    = filenames.length;
+	title_no_ext = split(filenames[nb_images - 1], "."); // remove the extension
+	SplitTitle   = split(title_no_ext[0], "_");          // cut the title at each _
+
+	nb_X         = parseInt(SplitTitle[1]);
+	nb_Y         = parseInt(SplitTitle[2]);
+
+	// Run grid stitching
+	// Add option for different protocols
+	run("Grid/Collection stitching", "type=[Filename defined position] order=[Defined by filename         ] grid_size_x="+nb_Y+" grid_size_y="+nb_X+" tile_overlap=10 first_file_index_i=1 directory=["+stack_directory+"] file_names=["+save_name+"_{y}_{x}.tif] output_textfile_name=TileConfiguration.txt fusion_method=[Linear Blending] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 add_tiles_as_rois compute_overlap computation_parameters=[Save memory (but be slower)] image_output=[Fuse and display]");
+	
+	// Save the stitched image
+	if (exportChoice=="Tiff"||exportChoice=="PNG") { //works
+		saveAs(exportChoice, stitch_directory + save_name);
+	}
+	else if(exportChoice=="Image Sequence"){ //works
+		run("Image Sequence... ", "select=["+stitch_directory+"] dir=[" + stitch_directory + "] format=TIFF");
+	}
+	else if(exportChoice=="AVI"){ // to check but should work
+		Dialog.create("AVI Export options");
+		Dialog.addNumber("Frame per second", 7) 
+		Dialog.show();
+
+		FPS  = parseInt(Dialog.getChoice());
+		run("AVI... ", "compression=None frame=" + FPS + " save=[" + stitch_directory + "/Fused.avi]");
+		//run("AVI... ", "compression=None frame="+FPS+" save=[D:/Denmark/Data/CorrSight/File structure Richard/LayersData/Layer/Stiching/Fused.avi]");
+	}
+	else if(exportChoice=="HDF5 (new or replace)..."){
+		run("HDF5 (new or replace)...", "save=" + stitch_directory + "/Stitched_image.h5");
+	}
+	else{
+		run("OME-TIFF...", "save=" + stitch_directory + "/Stitched_image.tif export compression=Uncompressed");
+	}
+	close();
+	close("ROI Manager");
+}
+
+/**
+ * Prints information about skipped images, if any.
+ */
+function showSkipped(){
+	if (skipped_images.length = 0) {
+		return
+	}
+	print("The following images where skipped:");
+	for (i = 0; i < skipped_images.length; i++) {
+		print(" - " + skipped_images[i] + ":");
+		print("   ->" + skipp_reason[i]);
+	}
+}
+
+/**
+ * Main function to execute the macro. Closes all open images,
+ * prompts the user to choose the source directory and export options,
+ * and processes each experiment in the specified directory.
+ */
+macro "Generate Stacks Button Action Tool - C000D00D01D02D03D04D10D20D30D40DfbDfcDfdDfeDffC000D11D12D13D21D22D23D31D41DbfDcdDceDcfDddDdeDdfDebDecDedDeeDefDf0DfaC000D05C000Df1Df2Df3Df4Df5Df6Df7Df8Df9C000D14DdcC000DeaC000D32C000D50DbeC000C111DdbDe0C111D0fC111DccC111D15C111D60D70D80D90Da0Db0Dc0Dd0DdaC111C222D06D42D51C222D33C222DafC222D24C222D07D08D09D0aD0bD0cD0dD0eC222De9C222C333D52C333De1De2De3De4De5De6De7De8C333Dd9C333C444D61D62D63D64D65D66D67D68D71D72D73D74D75D76D77D78D81D82D83D84D85D86D87D88D91D92D93D94D95D96D97D98Da1Da2Da3Da4Da5Da6Da7Da8Db1Db2Db3Db4Db5Db6Db7Db8Dc1Dc2Dc3Dc4Dc5Dc6Dc7Dc8Dd1Dd2Dd3Dd4Dd5Dd6Dd7Dd8C444DbdC444D34C444Dc9C444D69D79D89D99Da9Db9C444C555DbcC555DaeC555D53C555D54D55D56D57D58C666D59C666DcbC666DcaC666C777D43C777D1fC777D6aD7aD8aD9aDaaDbaC777DbbC777D5aC777D44C777D45D46D47D48D49D4aD9fC777D5bD6bD7bD8bD9bDabC888D4bC888D2fD3fD4fD5fD6fD7fD8fC888D25C888C999D35C999D36D37D38D39D3aC999D3bC999DadC999D4cD5cD6cD7cD8cD9cDacC999CaaaD3cCaaaD26CaaaD3dD4dD5dD6dD7dD8dD9dCaaaCbbbD16D27D28D29D2aD2bD2cCbbbD2dCbbbCcccCdddCeeeD17D18D19D1aD1bD1cD1dCeeeD1eCeeeD9eCeeeCfffD3eD4eD5eD6eD7eD8eCfffD2e"{
+    run("Close All");
+    chooseSourceAndExportOptions();
+
+    experimentList = getFileList(dirS);
+    num_experiment = experimentList.length;
+
+    for (experiment = 0; experiment < num_experiment; experiment++) {
+        print("Experiment " + (experiment + 1) + "/" + num_experiment);
+        processExperiment(experimentList[experiment]);
+    }
+	showSkipped();
+    print("Done!");
+}
+
