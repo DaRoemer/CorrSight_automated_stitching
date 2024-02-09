@@ -81,7 +81,7 @@ function chooseSourceAndExportOptions() {
 /**
  * Processes all slides for each experiment in the specified directory.
  *
- * @param {string} current_experiment - Name of the current experiment folder.
+ * @param	{string} 	current_experiment 	- Name of the current experiment folder.
  */
 function processExperiment(current_experiment) {
     current_experiment_name = substring(current_experiment, 0, current_experiment.length - 1);
@@ -101,7 +101,7 @@ function processExperiment(current_experiment) {
         for (image = 0; image < num_images; image++) {
             count = processImages(current_experiment_name, current_slide_name, num_images, imagesfolder, imagesList, image);
             if (count > 2) {
-            	runGridStitchingAndSave(imagesfolder, stack_directory, exportChoice, save_name, nb_X, nb_Y)
+            	runGridStitchingAndSave(stack_directory, exportChoice, save_name, nb_X, nb_Y);
             }
         }
     }
@@ -111,13 +111,13 @@ function processExperiment(current_experiment) {
  * Processes each image folder within a slide by stacking them,
  * checking metadata, and saving stack(s) with column and line names.
  *
- * @param {string} experimentName 		- Name of the current experiment.
- * @param {string} current_slideName 	- Name of the current slide.
- * @param {number} num_images 			- Total number of images in the slide.
- * @param {string} imagesfolder 		- Path to the folder containing folders with images.
- * @param {Array} imagesList 			- List of folders with image files in the folder of one slide.
- * @param {number} image 				- Index of the current image folder in the list.
- * @returns {number} 					- Count of created stacks.
+ * @param 	{string}	experimentName 		- Name of the current experiment.
+ * @param 	{string}	current_slideName 	- Name of the current slide.
+ * @param 	{number} 	num_images 			- Total number of images in the slide.
+ * @param 	{string} 	imagesfolder 		- Path to the folder containing folders with images.
+ * @param 	{Array} 	imagesList 			- List of folders with image files in the folder of one slide.
+ * @param 	{number} 	image 				- Index of the current image folder in the list.
+ * @returns	{number} 						- Count of created stacks.
  */
 function processImages(experimentName, current_slideName, num_images, imagesfolder, imagesList, image) {
     // Stack images
@@ -140,17 +140,15 @@ function processImages(experimentName, current_slideName, num_images, imagesfold
 	if (folderEnding == "_stack" || folderEnding == "itched" || next_folderEnding == "_stack") {
 		print("            This silde has been skipped, because it was alredy processed and a stack folder exist.\n            Delet this stack (and stitch) folder if you want to process it again.");
 		skipped_images[skipped] = save_name;
-		skipp_reason[skipped]   = "Image already processed earlyer - for reprecessing, delete the related folder";
+		skipp_reason[skipped]   = "Image already processed earlyer - for reprocessing, delete the _stack and/or _stitched folder";
 		skipped = skipped + 1;
 		return 1
 	}
 	
-	
-	
 	// Extract Metadata from the title of the last tile
-	filenames    			= getFileList(currentImageFolder);
-	nb_images    			= filenames.length;
-	SplitTitle   			= split(filenames[nb_images-1], "_"); // cut the title at each _ (anything_dye1_dye2_dye3)
+	filenames    = getFileList(currentImageFolder);
+	nb_images    = filenames.length;
+	SplitTitle   = split(filenames[nb_images-1], "_"); // cut the title at each _ (anything_dye1_dye2_dye3)
 	
 	SplitXYZ     = split(SplitTitle[1], "-");
 	nb_X         = parseInt(SplitXYZ[0]);
@@ -199,12 +197,13 @@ function processImages(experimentName, current_slideName, num_images, imagesfold
 				close(save_tile + ".tif");	
 				count = count + 1;
 			}
+			
 			// If stack can not be build for one stack, stopp futher building 
 			else {
 				print("               This image was NOT processed.");
 				run("Close All");
 				skipped_images[skipped] = save_name;
-				skipp_reason[skipped]   = "Your data has problems. It seems as if not the right input data is provided";
+				skipp_reason[skipped]   = "Your data might has problems. Maybe this folder just incudes the map - then everything is fine. Otherwise your input data has some problems.";
 				skipped = skipped + 1;
 				return 1
 			}
@@ -217,16 +216,15 @@ function processImages(experimentName, current_slideName, num_images, imagesfold
  * Runs grid stitching on processed stacks and saves the stitched image. Will only be trigged,
  * if the raw data was stacked in multiple images.
  *
- * @param {string} imagesfolder 			- Path to the folder containing processed stacks.
- * @param {string} stack_directory 			- Path to the directory containing stacks.
- * @param {string} exportChoice 			- Chosen export format for the stitched image.
- * @param {string} save_name 				- Name to be used when saving the stitched image.
- * @param {number} nb_X 					- Number of tiles in the X direction.
- * @param {number} nb_Y 					- Number of tiles in the Y direction.
+ * @param 	{string} 	stack_directory 		- Path to the directory containing stacks.
+ * @param 	{string} 	exportChoice 			- Chosen export format for the stitched image.
+ * @param 	{string} 	save_name 				- Name to be used when saving the stitched image.
+ * @param 	{number} 	nb_X 					- Number of tiles in the X direction.
+ * @param 	{number} 	nb_Y 					- Number of tiles in the Y direction.
  */
-function runGridStitchingAndSave(imagesfolder, stack_directory, exportChoice, save_name, nb_X, nb_Y) {
+function runGridStitchingAndSave(stack_directory, exportChoice, save_name, nb_X, nb_Y) {
     // Stitch images together and save
-	stitch_directory = imagesfolder + "/" + foldernameCut + "_stitched/";
+	stitch_directory = substring(stack_directory, 0, stack_directory.length-6) + "stitched/";
 	File.makeDirectory(stitch_directory);
 
 	// Get metadata from the last stack
@@ -272,8 +270,8 @@ function runGridStitchingAndSave(imagesfolder, stack_directory, exportChoice, sa
  * Prints information about skipped images, if any.
  */
 function showSkipped(){
-	if (skipped_images.length = 0) {
-		return
+	if (skipped_images.length == 0) {
+		return;
 	}
 	print("The following images where skipped:");
 	for (i = 0; i < skipped_images.length; i++) {
@@ -287,7 +285,7 @@ function showSkipped(){
  * prompts the user to choose the source directory and export options,
  * and processes each experiment in the specified directory.
  */
-macro "Generate Stacks Button Action Tool - C000D00D01D02D03D04D10D20D30D40DfbDfcDfdDfeDffC000D11D12D13D21D22D23D31D41DbfDcdDceDcfDddDdeDdfDebDecDedDeeDefDf0DfaC000D05C000Df1Df2Df3Df4Df5Df6Df7Df8Df9C000D14DdcC000DeaC000D32C000D50DbeC000C111DdbDe0C111D0fC111DccC111D15C111D60D70D80D90Da0Db0Dc0Dd0DdaC111C222D06D42D51C222D33C222DafC222D24C222D07D08D09D0aD0bD0cD0dD0eC222De9C222C333D52C333De1De2De3De4De5De6De7De8C333Dd9C333C444D61D62D63D64D65D66D67D68D71D72D73D74D75D76D77D78D81D82D83D84D85D86D87D88D91D92D93D94D95D96D97D98Da1Da2Da3Da4Da5Da6Da7Da8Db1Db2Db3Db4Db5Db6Db7Db8Dc1Dc2Dc3Dc4Dc5Dc6Dc7Dc8Dd1Dd2Dd3Dd4Dd5Dd6Dd7Dd8C444DbdC444D34C444Dc9C444D69D79D89D99Da9Db9C444C555DbcC555DaeC555D53C555D54D55D56D57D58C666D59C666DcbC666DcaC666C777D43C777D1fC777D6aD7aD8aD9aDaaDbaC777DbbC777D5aC777D44C777D45D46D47D48D49D4aD9fC777D5bD6bD7bD8bD9bDabC888D4bC888D2fD3fD4fD5fD6fD7fD8fC888D25C888C999D35C999D36D37D38D39D3aC999D3bC999DadC999D4cD5cD6cD7cD8cD9cDacC999CaaaD3cCaaaD26CaaaD3dD4dD5dD6dD7dD8dD9dCaaaCbbbD16D27D28D29D2aD2bD2cCbbbD2dCbbbCcccCdddCeeeD17D18D19D1aD1bD1cD1dCeeeD1eCeeeD9eCeeeCfffD3eD4eD5eD6eD7eD8eCfffD2e"{
+macro "Generate Stacks and stitch Button Action Tool - C000D00D01D02D03D04D10D20D30D40DfbDfcDfdDfeDffC000D11D12D13D21D22D23D31D41DbfDcdDceDcfDddDdeDdfDebDecDedDeeDefDf0DfaC000D05C000Df1Df2Df3Df4Df5Df6Df7Df8Df9C000D14DdcC000DeaC000D32C000D50DbeC000C111DdbDe0C111D0fC111DccC111D15C111D60D70D80D90Da0Db0Dc0Dd0DdaC111C222D06D42D51C222D33C222DafC222D24C222D07D08D09D0aD0bD0cD0dD0eC222De9C222C333D52C333De1De2De3De4De5De6De7De8C333Dd9C333C444D61D62D63D64D65D66D67D68D71D72D73D74D75D76D77D78D81D82D83D84D85D86D87D88D91D92D93D94D95D96D97D98Da1Da2Da3Da4Da5Da6Da7Da8Db1Db2Db3Db4Db5Db6Db7Db8Dc1Dc2Dc3Dc4Dc5Dc6Dc7Dc8Dd1Dd2Dd3Dd4Dd5Dd6Dd7Dd8C444DbdC444D34C444Dc9C444D69D79D89D99Da9Db9C444C555DbcC555DaeC555D53C555D54D55D56D57D58C666D59C666DcbC666DcaC666C777D43C777D1fC777D6aD7aD8aD9aDaaDbaC777DbbC777D5aC777D44C777D45D46D47D48D49D4aD9fC777D5bD6bD7bD8bD9bDabC888D4bC888D2fD3fD4fD5fD6fD7fD8fC888D25C888C999D35C999D36D37D38D39D3aC999D3bC999DadC999D4cD5cD6cD7cD8cD9cDacC999CaaaD3cCaaaD26CaaaD3dD4dD5dD6dD7dD8dD9dCaaaCbbbD16D27D28D29D2aD2bD2cCbbbD2dCbbbCcccCdddCeeeD17D18D19D1aD1bD1cD1dCeeeD1eCeeeD9eCeeeCfffD3eD4eD5eD6eD7eD8eCfffD2e"{
     run("Close All");
     chooseSourceAndExportOptions();
 
