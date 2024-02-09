@@ -1,6 +1,6 @@
 # Introduction
 
-This macro is build on the work of [CorrSight-Tilling-ImageJ](https://github.com/rdemets/CorrSight-Tilling-ImageJ/tree/main) from Richard De Mets. The main aim is to stitch together tiles generated bz the CorrSight spinning disk microscopy. The files will be saved in a single file. The macro automases this workflow by processing all images provided in a specific dirctory structure (see example).
+This macro is build on the work of [CorrSight-Tilling-ImageJ](https://github.com/rdemets/CorrSight-Tilling-ImageJ) from Richard De Mets. The main aim is to stitch together tiles generated bz the CorrSight spinning disk microscopy. The files will be saved in a single file. The macro automases this workflow by processing all images provided in a specific dirctory structure (see example).
 
 ## How to install
 
