@@ -45,13 +45,13 @@
  *  Intermediate hyperstack are being saved for memory saving purposes.
  *  Multichoices of export added on 0.1.1
  *  Felix Version added the posibility to tun the script over many different experiments automaticlly.
- *  Quality of live changes like function, naming, ... added on 1.1.2
+ *  Stitching fixed on 1.1.3
  *  
  *  Macro author:    R. De Mets
  *  Version:         0.1.2, 05/02/2024
  *  
  *  Adapted by:      Felix Romer
- *  Adapted Version: 1.1.2, 07/02/2024
+ *  Adapted Version: 1.1.3, 07/02/2024
  */
 
 // Global variables
