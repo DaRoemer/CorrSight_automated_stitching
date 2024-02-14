@@ -17,7 +17,7 @@ To activate the macro, find it under the **>>** menu on the right hand side of F
 <br>If this button is pressed, one has to specify the main folder and choose the file type for saving. (Only Tiff has been tested.)
 
 ### Folder structure
-Your folder structure should follow the provided example or as indicated here. The naming of the folders can be as wanted. Only the folders *LayersData* and *Layer* are needed and should not be renamed / removed:
+Your folder structure should follow the provided example or as indicated here. The naming of the folders can be as wanted. Only the folders *LayersData* and *Layer* are needed and should not be renamed / removed. In our imaging setup they are automatly added and store aditionalle meta data, that is not used within this macro.
 - MainFolder
  	- Experiment1
 		- Slide1
